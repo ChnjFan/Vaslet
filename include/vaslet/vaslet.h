@@ -1,3 +1,10 @@
+// Copyright (c) 2026 ChnjFan
+//
+// Licensed under the MIT License. See LICENSE in the project root for
+// license information.
+
+// Public Vaslet client API. Currently provides version queries only.
+
 #ifndef VASLET_VASLET_H_
 #define VASLET_VASLET_H_
 

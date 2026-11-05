@@ -1,3 +1,11 @@
+// Copyright (c) 2026 ChnjFan
+//
+// Licensed under the MIT License. See LICENSE in the project root for
+// license information.
+
+// CMake generates vaslet_version.h from this template to keep the service and
+// client library versions consistent with the project version.
+
 #ifndef VASLET_COMMON_VERSION_H_
 #define VASLET_COMMON_VERSION_H_
 

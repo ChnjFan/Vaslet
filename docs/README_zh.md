@@ -29,7 +29,7 @@ Vaslet 是面向低成本 Linux 嵌入式设备的轻量级 JSON 配置中心，
 
 # 仓库结构
 
-计划将公共 API 头文件放在 `include/vaslet/`，服务端、客户端库和命令行实现分别放在 `src/server/`、`src/client/` 和 `src/cli/`，内部共享代码放在 `src/common/`。测试、示例和构建工具独立存放。
+计划将公共 API 头文件放在 `include/vaslet/`，服务端、客户端库和命令行实现分别放在 `src/vasletd/`、`src/libvaslet/` 和 `src/vasletctl/`，内部共享代码放在 `src/common/`。测试、示例和构建工具独立存放。
 
 完整目录树、组件边界和交付目标见[项目目录规划](project-layout.md)。当前已生成可构建的最小骨架。
 
@@ -47,13 +47,17 @@ git clone https://github.com/ChnjFan/Vaslet.git
 
 # 构建
 
-骨架使用 CMake 3.20 或更新版本、C++17，无第三方依赖。
+骨架使用 CMake 3.20 或更新版本、C++17，交付产物无第三方依赖。
+单元测试使用 GoogleTest v1.17.0，在 `BUILD_TESTING=ON`（默认）时获取。
+使用 `-DBUILD_TESTING=OFF` 可关闭测试，并跳过 GoogleTest 下载和编译。
 
 ```sh
-cmake -S . -B build/host-debug -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build/host-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
 cmake --build build/host-debug
 ctest --test-dir build/host-debug --output-on-failure
 ```
+
+未指定构建类型时，单配置生成器默认使用 Release。程序输出到构建目录的 `bin/`，库输出到 `lib/`。
 
 发布安装、示例程序及交叉编译说明见[构建与安装](building.md)。当前尚不支持配置操作。
 

@@ -23,3 +23,66 @@ sh scripts/measure-size.sh build/target-release/stage
 
 100 KB 的字节口径及新增依赖是否计入预算尚待确定，所以脚本目前只报告字节数，
 不作达标判定。运行时内存占用单独测量。当前未发布目标设备的体积或性能结果。
+
+## 命令行参数注册的本机体积对比
+
+2026-11-05，在 `280cbca` 加本地未提交改动的工作区中，分别于新增共享解析器前后测量。
+两次均使用 macOS arm64、AppleClang 17.0.0（clang-1700.6.4.2）、CMake 4.1，
+Release 编译选项为 `-O3 -DNDEBUG -std=c++17`，未开启 LTO。
+使用同一 `build/cli-size` 构建目录，设置 `BUILD_TESTING=OFF`、
+`CMAKE_INSTALL_LIBDIR=lib`，以 `cmake --install build/cli-size --strip` 安装并剥离符号，
+随后运行 `sh scripts/measure-size.sh build/cli-size/stage`。
+
+| 安装产物 | 变更前（字节） | 变更后（字节） | 增量（字节） |
+| --- | ---: | ---: | ---: |
+| `bin/vasletd` | 33,608 | 34,984 | 1,376 |
+| `lib/libvaslet.dylib` | 16,816 | 16,816 | 0 |
+| `bin/vasletctl` | 33,688 | 35,048 | 1,360 |
+| 合计 | 84,112 | 86,848 | 2,736 |
+
+解析器通过内部静态库链接到服务端和 CLI，不增加交付文件或第三方依赖。
+两次直接动态依赖相同：三个产物均依赖系统 `libc++` 和 `libSystem`，
+CLI 另依赖配套 `libvaslet.dylib`；依赖文件大小未计入上述合计。
+此结果仅用于本次改动的本机对比，不代表 Linux 目标设备体积验收；未测量运行时内存。
+
+### 带值参数与服务端路径接入
+
+同日沿用上述工具链、构建目录、选项和剥离方式，将前一节已安装的开关版本与当前版本对比：
+
+| 安装产物 | 开关版本（字节） | 当前版本（字节） | 增量（字节） |
+| --- | ---: | ---: | ---: |
+| `bin/vasletd` | 34,984 | 35,688 | 704 |
+| `lib/libvaslet.dylib` | 16,816 | 16,816 | 0 |
+| `bin/vasletctl` | 35,048 | 35,256 | 208 |
+| 合计 | 86,848 | 87,760 | 912 |
+
+当前版本包含字符串值解析、`config/-c` 路径接入及目录命名空间调整，
+增量不单独归因于解析器。直接动态依赖未变。此结果仍为 macOS 本机对比，
+未执行 Linux 目标设备体积验收或运行时内存测量。
+
+### GoogleTest 测试依赖
+
+同日使用上述 macOS arm64 工具链和 Release 选项，在 GoogleTest 接入前后比较安装并剥离符号的交付产物。
+基线为当时包含目录构建规则及服务端入口改动的工作区，`BUILD_TESTING=OFF`；
+接入后在同一 `build/cli-size` 中开启 `BUILD_TESTING=ON`，构建并通过全部测试，
+再安装至新的 `build/cli-size/stage-gtest` 目录，避免重复处理已剥离文件的 RPATH。
+
+| 安装产物 | 接入前（字节） | 接入后（字节） |
+| --- | ---: | ---: |
+| `bin/vasletd` | 35,640 | 35,640 |
+| `lib/libvaslet.dylib` | 16,816 | 16,816 |
+| `bin/vasletctl` | 35,256 | 35,256 |
+| 合计 | 87,712 | 87,712 |
+
+GoogleTest 仅静态链接到单元测试；安装清单中不含 GoogleTest 或测试程序。
+三个产物的体积和直接动态依赖均未增加。关闭测试的独立构建未生成测试依赖目录，
+编译命令中不含测试或 GoogleTest 源码。此对比不代表 Linux 目标设备验收。
+
+### 参考 Jianm 调整构建风格
+
+同日沿用上述工具链和 `build/cli-size` 的 Release 配置，在调整前后分别安装并剥离符号，
+目录为 `before-jianm` 和 `after-jianm`。本次增加项目目标的严格告警，保持 `-O3 -DNDEBUG`
+优化选项不变，并将未安装的程序和库统一输出到构建目录的 `bin/` 与 `lib/`。
+两次安装后的 `vasletd` 均为 35,640 字节、`libvaslet.dylib` 均为 16,816 字节、
+`vasletctl` 均为 35,256 字节，合计均为 87,712 字节；直接动态依赖未变。
+安装后的命令行检查通过。本机对比不代表 Linux 目标设备体积验收。

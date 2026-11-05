@@ -36,7 +36,7 @@ See the [API notes](docs/api.md), [command-line reference](docs/cli.md), and
 # Repository Contents
 
 The planned layout separates public API headers (`include/vaslet/`), component
-implementations (`src/server/`, `src/client/`, and `src/cli/`), internal shared
+implementations (`src/vasletd/`, `src/libvaslet/`, and `src/vasletctl/`), internal shared
 code (`src/common/`), tests, examples, and build tools. See the
 [directory plan](docs/project-layout.md) (in Chinese) for component boundaries
 and delivery targets. The initial buildable skeleton is now in place.
@@ -59,13 +59,19 @@ git clone https://github.com/ChnjFan/Vaslet.git
 
 # Building
 
-The skeleton uses CMake 3.20 or newer, C++17, with no third-party dependencies.
+The skeleton uses CMake 3.20 or newer and C++17. Delivery binaries have no
+third-party dependencies. Unit tests use GoogleTest v1.17.0, fetched when
+`BUILD_TESTING=ON` (the default). Use `-DBUILD_TESTING=OFF` to build without tests
+or downloading GoogleTest.
 
 ```sh
-cmake -S . -B build/host-debug -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build/host-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
 cmake --build build/host-debug
 ctest --test-dir build/host-debug --output-on-failure
 ```
+
+Without an explicit build type, single-configuration generators use Release.
+Executables are written to the build directory’s `bin/`, and libraries to `lib/`.
 
 See [building and installation](docs/building.md) for examples, release builds,
 and cross-compilation notes. Configuration operations are not available yet.

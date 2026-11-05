@@ -63,7 +63,7 @@ jobs:
         run: ctest --test-dir build/ci --output-on-failure --no-tests=error
 
       - name: Run client example
-        run: ./build/ci/examples/client/vaslet_client_example
+        run: ./build/ci/bin/vaslet_client_example
 
       - name: Install
         run: |
