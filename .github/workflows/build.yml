@@ -1,0 +1,132 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Linux / ${{ matrix.compiler.name }} / ${{ matrix.build_type }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - name: gcc
+            cxx: g++-13
+          - name: clang
+            cxx: clang++-18
+        build_type: [Debug, Release]
+    env:
+      CXX: ${{ matrix.compiler.cxx }}
+      COMPILER: ${{ matrix.compiler.name }}
+      BUILD_TYPE: ${{ matrix.build_type }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          uname -a
+          cmake --version
+          "$CXX" --version
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build/ci
+          -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+          -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/build/stage"
+          -DCMAKE_INSTALL_LIBDIR=lib
+          -DBUILD_TESTING=ON
+          -DVASLET_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build/ci --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build/ci --output-on-failure --no-tests=error
+
+      - name: Run client example
+        run: ./build/ci/examples/client/vaslet_client_example
+
+      - name: Install
+        run: |
+          if [[ "$BUILD_TYPE" == Release ]]; then
+            cmake --install build/ci --strip
+          else
+            cmake --install build/ci
+          fi
+
+      - name: Verify installed artifacts
+        run: |
+          test -f build/stage/lib/libvaslet.so
+          test -f build/stage/include/vaslet/vaslet.h
+          test -f build/stage/share/doc/Vaslet/api.md
+          test -f build/stage/share/vaslet/LICENSE
+          # Do not set LD_LIBRARY_PATH: verify the installed CLI's relative RPATH.
+          ./build/stage/bin/vasletd --version
+          ./build/stage/bin/vasletd --help
+          ./build/stage/bin/vasletctl --version
+          ./build/stage/bin/vasletctl --help
+
+      - name: Report release size
+        if: matrix.build_type == 'Release'
+        run: |
+          mkdir -p build/reports
+          sh scripts/measure-size.sh build/stage | tee build/reports/size.txt
+          {
+            printf 'Commit: %s\nCompiler: %s\nBuild type: %s\n' "$GITHUB_SHA" "$CXX" "$BUILD_TYPE"
+            printf 'Symbols: stripped\nInstall library directory: lib\n'
+            uname -a
+            "$CXX" --version
+            cmake --version
+            grep -E '^CMAKE_(CXX_COMPILER|CXX_FLAGS[^:]*|EXE_LINKER_FLAGS[^:]*|SHARED_LINKER_FLAGS[^:]*):' build/ci/CMakeCache.txt
+          } > build/reports/toolchain.txt
+          {
+            printf '### Binary size (%s, Release)\n\n' "$COMPILER"
+            printf 'Native Linux x86_64 CI build; dependency sizes excluded. This is not target-device acceptance.\n\n'
+            printf '```text\n'
+            cat build/reports/size.txt
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package release artifacts
+        if: matrix.build_type == 'Release'
+        run: tar -czf "build/vaslet-linux-x86_64-$COMPILER.tar.gz" -C build/stage .
+
+      - name: Upload release artifacts and reports
+        if: matrix.build_type == 'Release'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vaslet-linux-x86_64-${{ matrix.compiler.name }}-release
+          path: |
+            build/vaslet-linux-x86_64-${{ matrix.compiler.name }}.tar.gz
+            build/reports/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload test diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-logs-${{ matrix.compiler.name }}-${{ matrix.build_type }}
+          path: build/ci/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
