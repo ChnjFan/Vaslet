@@ -1,0 +1,19 @@
+// Copyright (c) 2026 ChnjFan
+// Licensed under the MIT License. See LICENSE in the project root.
+//
+// Project version supplied by CMake at configuration time.
+// Generated from common/version.h.in. Edit the template, not the output file.
+
+#ifndef VASLET_GENERATED_VASLET_VERSION_H_
+#define VASLET_GENERATED_VASLET_VERSION_H_
+
+namespace vaslet {
+
+inline constexpr char kVersion[] = "@PROJECT_VERSION@";
+inline constexpr int kVersionMajor = @PROJECT_VERSION_MAJOR@;
+inline constexpr int kVersionMinor = @PROJECT_VERSION_MINOR@;
+inline constexpr int kVersionPatch = @PROJECT_VERSION_PATCH@;
+
+}  // namespace vaslet
+
+#endif  // VASLET_GENERATED_VASLET_VERSION_H_
